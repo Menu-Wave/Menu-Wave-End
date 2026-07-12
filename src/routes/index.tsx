@@ -280,7 +280,8 @@ function DashboardInner({ userEmail }: { userEmail: string }) {
       list = list.filter((o) => {
         const code = (o.public_code || "").toLowerCase().replace(/^rpb-/, "");
         const name = (o.Name || "").toLowerCase();
-        return code.includes(normalizedQuery) || name.includes(q);
+        const tableStr = o.table_number != null ? String(o.table_number).toLowerCase() : "";
+        return code.includes(normalizedQuery) || name.includes(q) || tableStr === q;
       });
     }
     return list;
@@ -315,7 +316,7 @@ function DashboardInner({ userEmail }: { userEmail: string }) {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search order code or name…"
+              placeholder="Search order code, name, or table #…"
               className="w-full rounded-full border border-slate-300 px-4 py-2 text-sm focus:border-slate-500 focus:outline-none"
             />
           </div>
@@ -444,7 +445,12 @@ function DashboardInner({ userEmail }: { userEmail: string }) {
                         {o.Name || "Customer"}
                       </h2>
                       <p className="text-xs text-slate-500">
-                        {timeAgo(o.created_at)} · #{o.id}
+                        {timeAgo(o.created_at)} · {o.public_code || `#${o.id}`}
+                        {o.table_number != null && (
+                          <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-700">
+                            Table {o.table_number}
+                          </span>
+                        )}
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-1">
@@ -528,4 +534,3 @@ function DashboardInner({ userEmail }: { userEmail: string }) {
     </div>
   );
 }
-
