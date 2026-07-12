@@ -140,6 +140,8 @@ function LoginScreen() {
 function DashboardInner({ userEmail }: { userEmail: string }) {
   const [orders, setOrders] = useState<RepublicOrder[]>([]);
   const [filter, setFilter] = useState<"All" | OrderStatus>("All");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [realtimeConnected, setRealtimeConnected] = useState(true);
   const [flashIds, setFlashIds] = useState<Set<number>>(new Set());
   const [, setTick] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -227,7 +229,9 @@ function DashboardInner({ userEmail }: { userEmail: string }) {
           }
         },
       )
-      .subscribe();
+      .subscribe((status) => {
+        setRealtimeConnected(status === "SUBSCRIBED");
+      });
 
     return () => {
       cancelled = true;
@@ -269,9 +273,18 @@ function DashboardInner({ userEmail }: { userEmail: string }) {
   }, [orders]);
 
   const visible = useMemo(() => {
-    if (filter === "All") return orders;
-    return orders.filter((o) => (o.Status || "New") === filter);
-  }, [orders, filter]);
+    let list = filter === "All" ? orders : orders.filter((o) => (o.Status || "New") === filter);
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      const normalizedQuery = q.replace(/^rpb-/, "");
+      list = list.filter((o) => {
+        const code = (o.public_code || "").toLowerCase().replace(/^rpb-/, "");
+        const name = (o.Name || "").toLowerCase();
+        return code.includes(normalizedQuery) || name.includes(q);
+      });
+    }
+    return list;
+  }, [orders, filter, searchQuery]);
 
   const tabs: ("All" | OrderStatus)[] = ["All", ...STATUSES];
 
@@ -287,8 +300,24 @@ function DashboardInner({ userEmail }: { userEmail: string }) {
               <h1 className="text-xl font-bold tracking-tight text-slate-900">
                 Chicken Republic
               </h1>
-              <p className="text-xs text-slate-500">Live order dashboard</p>
+              <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${
+                    realtimeConnected ? "bg-green-500" : "bg-red-500 animate-pulse"
+                  }`}
+                />
+                {realtimeConnected ? "Live order dashboard" : "Reconnecting… try refreshing if this persists"}
+              </div>
             </div>
+          </div>
+          <div className="w-full sm:w-64">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search order code or name…"
+              className="w-full rounded-full border border-slate-300 px-4 py-2 text-sm focus:border-slate-500 focus:outline-none"
+            />
           </div>
           <div className="flex flex-wrap gap-2">
             {tabs.map((t) => {
@@ -358,7 +387,7 @@ function DashboardInner({ userEmail }: { userEmail: string }) {
                     : "";
                 return (
                   <li key={p.id} className={`flex flex-wrap items-center gap-3 px-3 py-2 text-sm ${tone}`}>
-                    <span className="w-14 font-mono text-xs text-slate-500">#{p.id}</span>
+                    <span className="w-20 font-mono text-xs text-slate-500">{p.public_code || `#${p.id}`}</span>
                     <span className="min-w-[8rem] font-semibold text-slate-800">{p.customer_name || "—"}</span>
                     <span className="flex-1 truncate text-slate-600">{p.order_summary || "—"}</span>
                     <span className="font-bold text-slate-900">₦{Number(p.amount ?? 0).toLocaleString()}</span>
@@ -366,7 +395,7 @@ function DashboardInner({ userEmail }: { userEmail: string }) {
                       className={`rounded-full px-2 py-0.5 text-xs font-bold uppercase ${
                         (p.payment_status || "").toLowerCase() === "paid"
                           ? "bg-green-100 text-green-800"
-                          : "bg-slate-200 text-slate-700"
+                          : "bg-red-100 text-red-800"
                       }`}
                     >
                       {p.payment_status || "unpaid"}
@@ -433,7 +462,7 @@ function DashboardInner({ userEmail }: { userEmail: string }) {
                             className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ring-1 ${
                               paid
                                 ? "bg-green-100 text-green-800 ring-green-300"
-                                : "bg-slate-200 text-slate-700 ring-slate-300"
+                                : "bg-red-100 text-red-800 ring-red-300"
                             }`}
                           >
                             {paid ? "Paid" : "Unpaid"}
@@ -468,7 +497,7 @@ function DashboardInner({ userEmail }: { userEmail: string }) {
                       className={`h-11 w-full rounded-xl text-sm font-bold transition ${
                         (o.payment_status || "").toLowerCase() === "paid"
                           ? "bg-green-600 text-white hover:bg-green-700"
-                          : "bg-slate-200 text-slate-800 hover:bg-slate-300"
+                          : "bg-red-600 text-white hover:bg-red-700"
                       }`}
                     >
                       {(o.payment_status || "").toLowerCase() === "paid" ? "Mark Unpaid" : "Mark Paid"}
