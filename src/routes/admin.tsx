@@ -62,6 +62,7 @@ function AdminInner() {
   const [newItemPrice, setNewItemPrice] = useState("");
   const [newItemCategory, setNewItemCategory] = useState("Top Sellers");
   const [newItemEmoji, setNewItemEmoji] = useState("");
+  const [newItemImage, setNewItemImage] = useState<File | null>(null);
   const [addingItem, setAddingItem] = useState(false);
   const [addItemError, setAddItemError] = useState<string | null>(null);
   const [addItemSuccess, setAddItemSuccess] = useState(false);
@@ -173,6 +174,25 @@ function AdminInner() {
     }
 
     setAddingItem(true);
+
+    let imageUrl: string | null = null;
+    if (newItemImage) {
+      const fileExt = newItemImage.name.split(".").pop();
+      const filePath = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from("menu-images")
+        .upload(filePath, newItemImage, { cacheControl: "3600", upsert: false });
+
+      if (uploadError) {
+        setAddingItem(false);
+        setAddItemError(`Image upload failed: ${uploadError.message}`);
+        return;
+      }
+
+      const { data: publicUrlData } = supabase.storage.from("menu-images").getPublicUrl(filePath);
+      imageUrl = publicUrlData.publicUrl;
+    }
+
     const { data, error } = await supabase
       .from("menu_items")
       .insert({
@@ -180,6 +200,7 @@ function AdminInner() {
         price: priceNum,
         category: newItemCategory,
         emoji: newItemEmoji.trim() || null,
+        image_url: imageUrl,
         is_available: true,
       })
       .select()
@@ -195,6 +216,7 @@ function AdminInner() {
     setNewItemName("");
     setNewItemPrice("");
     setNewItemEmoji("");
+    setNewItemImage(null);
     setAddItemSuccess(true);
     setTimeout(() => setAddItemSuccess(false), 3000);
   };
@@ -376,6 +398,12 @@ function AdminInner() {
               maxLength={4}
               className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
             />
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setNewItemImage(e.target.files?.[0] ?? null)}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm file:mr-2 file:rounded-md file:border-0 file:bg-slate-100 file:px-2 file:py-1 file:text-xs focus:border-slate-500 focus:outline-none"
+            />
             <button
               type="submit"
               disabled={addingItem}
@@ -452,4 +480,4 @@ function StatCard({ label, data, tone }: { label: string; data: StatsRow | null;
       </div>
     </div>
   );
-                                            }
+}
