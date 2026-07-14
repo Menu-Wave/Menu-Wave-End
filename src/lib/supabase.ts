@@ -49,6 +49,12 @@ export interface MenuItem {
   is_available: boolean | null;
 }
 
+export interface Category {
+  id: number;
+  name: string;
+  display_order: number;
+}
+
 export const STATUSES: OrderStatus[] = ["New", "Preparing", "Ready", "Done"];
 
 export const nextStatus = (s: string | null | undefined): OrderStatus => {
