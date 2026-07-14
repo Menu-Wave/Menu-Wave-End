@@ -8,7 +8,7 @@ export const Route = createFileRoute("/")({
   component: Dashboard,
 });
 
-const TABLE = "Republic_Data";
+const TABLE = "orders";
 
 const statusStyles: Record<string, string> = {
   New: "bg-yellow-400 text-yellow-950 ring-yellow-500",
