@@ -97,7 +97,7 @@ function LoginScreen() {
         <div className="mb-6 flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-600 text-xl">🍗</div>
           <div>
-            <h1 className="text-lg font-bold text-slate-900">Chicken Republic</h1>
+            <h1 className="text-lg font-bold text-slate-900">My Kitchen</h1>
             <p className="text-xs text-slate-500">Staff sign in</p>
           </div>
         </div>
