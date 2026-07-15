@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, useCallback, type FormEvent } from "react";
 import { supabase, type MenuItem, type Category } from "@/lib/supabase";
 import type { Session } from "@supabase/supabase-js";
-import imglyRemoveBackground from "@imgly/background-removal";
+import { removeBackground as imglyRemoveBackground } from "@imgly/background-removal";
 import {
   BarChart,
   Bar,
