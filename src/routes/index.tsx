@@ -33,7 +33,7 @@ function LoginPage() {
       setCheckingSession(false);
       return;
     }
-    if (profile.role === "manager" || profile.role === "platform_admin") {
+    if (profile.role === "owner" || profile.role === "manager" || profile.role === "platform_admin") {
       navigate({ to: "/admin" });
     } else {
       navigate({ to: "/cashier" });
