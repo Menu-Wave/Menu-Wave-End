@@ -73,7 +73,7 @@ export interface Category {
 export interface StaffProfile {
   id: string;
   restaurant_id: number;
-  role: "staff" | "manager" | "platform_admin";
+  role: "staff" | "manager" | "owner" | "platform_admin";
 }
 
 // Resolves the logged-in user's staff row (restaurant_id + role).
