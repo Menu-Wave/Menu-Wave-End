@@ -48,7 +48,7 @@ function AdminPage() {
         navigate({ to: "/" });
         return;
       }
-      if (p.role !== "manager" && p.role !== "platform_admin") {
+      if (p.role !== "owner" && p.role !== "manager" && p.role !== "platform_admin") {
         navigate({ to: "/cashier" });
         return;
       }
