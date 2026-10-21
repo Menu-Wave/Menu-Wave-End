@@ -91,7 +91,7 @@ function KitchenPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          {(profile?.role === "manager" || profile?.role === "platform_admin") && (
+          {(profile?.role === "owner" || profile?.role === "manager" || profile?.role === "platform_admin") && (
             <Link to="/admin" className="rounded-full bg-slate-700 px-4 py-2 text-sm font-semibold">
               Admin
             </Link>
