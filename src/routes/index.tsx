@@ -1,10 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { ArrowRight, LockKeyhole, Mail, ShieldCheck, UtensilsCrossed } from "lucide-react";
 import { supabase, getStaffProfile, homeRouteForRole } from "@/lib/supabase";
 
-export const Route = createFileRoute("/")({
-  component: LoginPage,
-});
+export const Route = createFileRoute("/")({ component: LoginPage });
 
 function LoginPage() {
   const navigate = useNavigate();
@@ -17,11 +16,8 @@ function LoginPage() {
   useEffect(() => {
     (async () => {
       const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        await routeByRole();
-      } else {
-        setCheckingSession(false);
-      }
+      if (data.session) await routeByRole();
+      else setCheckingSession(false);
     })();
   }, []);
 
@@ -42,47 +38,54 @@ function LoginPage() {
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
-    if (error) {
-      setError(error.message);
-      return;
-    }
+    if (error) return setError(error.message);
     await routeByRole();
   };
 
   if (checkingSession) {
-    return <div className="grid h-screen place-items-center text-slate-400">Loading…</div>;
+    return <div className="mw-loading-screen"><img src="/menu-wave-logo.png" alt="" /><span>Opening Menu-Wave…</span></div>;
   }
 
   return (
-    <div className="grid h-screen place-items-center bg-slate-50 px-4">
-      <form onSubmit={handleLogin} className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h1 className="mb-1 text-xl font-bold text-slate-900">Menu-Wave Staff</h1>
-        <p className="mb-6 text-sm text-slate-500">Sign in to continue</p>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email"
-          className="mb-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-          required
-        />
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Password"
-          className="mb-4 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-          required
-        />
-        {error && <p className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p>}
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-lg bg-red-600 py-2 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-50"
-        >
-          {loading ? "Signing in…" : "Sign In"}
-        </button>
-      </form>
-    </div>
+    <main className="mw-auth-page">
+      <section className="mw-auth-brand-panel">
+        <div className="mw-auth-brand">
+          <img src="/menu-wave-logo.png" alt="Menu-Wave" />
+          <span>Menu-Wave</span>
+        </div>
+        <div className="mw-auth-brand-copy">
+          <span className="mw-eyebrow">Restaurant operations</span>
+          <h1>Keep every order <span>moving.</span></h1>
+          <p>One connected workspace for your cashier, kitchen, team and restaurant insights.</p>
+          <div className="mw-auth-flow">
+            <div><UtensilsCrossed size={18}/><span>Orders</span></div>
+            <i />
+            <div><ShieldCheck size={18}/><span>Team</span></div>
+            <i />
+            <div><ArrowRight size={18}/><span>Flow</span></div>
+          </div>
+        </div>
+        <p className="mw-auth-footnote">Restaurant ordering, without the chaos.</p>
+      </section>
+
+      <section className="mw-auth-form-panel">
+        <form onSubmit={handleLogin} className="mw-auth-card">
+          <div className="mw-auth-mobile-brand"><img src="/menu-wave-logo.png" alt=""/><span>Menu-Wave</span></div>
+          <span className="mw-eyebrow mw-eyebrow-blue">Management portal</span>
+          <h2>Welcome back</h2>
+          <p className="mw-auth-subtitle">Sign in with your restaurant staff account.</p>
+
+          <label className="mw-field-label" htmlFor="email">Email address</label>
+          <div className="mw-input-wrap"><Mail size={18}/><input id="email" type="email" value={email} onChange={(e)=>setEmail(e.target.value)} placeholder="you@restaurant.com" autoComplete="email" required /></div>
+
+          <label className="mw-field-label" htmlFor="password">Password</label>
+          <div className="mw-input-wrap"><LockKeyhole size={18}/><input id="password" type="password" value={password} onChange={(e)=>setPassword(e.target.value)} placeholder="Enter your password" autoComplete="current-password" required /></div>
+
+          {error && <p className="mw-auth-error">{error}</p>}
+          <button type="submit" disabled={loading} className="mw-primary-button">{loading ? "Signing in…" : <>Sign in <ArrowRight size={17}/></>}</button>
+          <p className="mw-auth-help">Your access is controlled by your restaurant administrator.</p>
+        </form>
+      </section>
+    </main>
   );
 }
