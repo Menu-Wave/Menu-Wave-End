@@ -1,0 +1,65 @@
+name: Update TanStack Lockfile
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-lockfile:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Show package versions
+        run: |
+          echo "package.json TanStack versions:"
+          grep -n "@tanstack" package.json
+
+      - name: Remove old Bun lockfile
+        run: |
+          rm -f bun.lock
+          rm -f bun.lockb
+
+      - name: Generate fresh Bun lockfile
+        run: |
+          bun install
+
+      - name: Verify vulnerable version is gone
+        run: |
+          echo "Checking bun.lock..."
+
+          if grep -q '@tanstack/react-start@1.168.26' bun.lock; then
+            echo "ERROR: Vulnerable @tanstack/react-start@1.168.26 is still present."
+            exit 1
+          fi
+
+          echo "Vulnerable react-start version is gone."
+
+          grep -n '@tanstack/react-start@' bun.lock | head -10
+          grep -n '@tanstack/start-server-core@' bun.lock | head -10
+
+      - name: Commit regenerated Bun lockfile
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add bun.lock
+
+          if git diff --cached --quiet; then
+            echo "ERROR: bun.lock was regenerated but Git detected no change."
+            exit 1
+          fi
+
+          git commit -m "Regenerate Bun lockfile with patched TanStack"
+          git push origin main
