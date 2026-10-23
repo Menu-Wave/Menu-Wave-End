@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { supabase, getStaffProfile, nextStatus, type Order, type StaffProfile } from "@/lib/supabase";
+import { supabase, getStaffProfile, nextStatus, canAccessAdmin, canAccessCashier, homeRouteForRole, type Order, type StaffProfile } from "@/lib/supabase";
 
 export const Route = createFileRoute("/cashier")({
   component: CashierPage,
@@ -27,6 +27,10 @@ function CashierPage() {
       const p = await getStaffProfile();
       if (!p) {
         navigate({ to: "/" });
+        return;
+      }
+      if (!canAccessCashier(p.role)) {
+        navigate({ to: homeRouteForRole(p.role) });
         return;
       }
       setProfile(p);
@@ -105,7 +109,7 @@ function CashierPage() {
             </div>
           </div>
           <div className="flex gap-2">
-            {(profile?.role === "owner" || profile?.role === "manager" || profile?.role === "platform_admin") && (
+            {profile && canAccessAdmin(profile.role) && (
               <Link to="/admin" className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">
                 Admin
               </Link>
