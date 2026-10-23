@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState, useCallback, type FormEvent } from "react";
-import { supabase, getStaffProfile, type MenuItem, type Category, type StaffProfile } from "@/lib/supabase";
+import { supabase, getStaffProfile, canAccessAdmin, homeRouteForRole, type MenuItem, type Category, type StaffProfile } from "@/lib/supabase";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 export const Route = createFileRoute("/admin")({
@@ -48,8 +48,8 @@ function AdminPage() {
         navigate({ to: "/" });
         return;
       }
-      if (p.role !== "owner" && p.role !== "manager" && p.role !== "platform_admin") {
-        navigate({ to: "/cashier" });
+      if (!canAccessAdmin(p.role)) {
+        navigate({ to: homeRouteForRole(p.role) });
         return;
       }
       setProfile(p);
