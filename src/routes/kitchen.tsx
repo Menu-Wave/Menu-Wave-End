@@ -87,11 +87,14 @@ function KitchenPage() {
       <audio ref={audioRef} src="data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=" />
 
       <header className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-700 bg-slate-900 px-5 py-4">
-        <div>
+        <div className="flex items-center gap-3">
+          <img src="/menu-wave-logo.png" alt="" className="h-10 w-10 rounded-xl" />
+          <div>
           <h1 className="text-xl font-bold">Kitchen</h1>
           <div className="flex items-center gap-1.5 text-xs text-slate-400">
             <span className={`h-1.5 w-1.5 rounded-full ${connected ? "bg-green-500" : "bg-red-500 animate-pulse"}`} />
             {connected ? "Live" : "Reconnecting…"}
+          </div>
           </div>
         </div>
         <div className="flex gap-2">
@@ -136,7 +139,7 @@ function KitchenPage() {
                 o.Status !== "Ready" && o.Status !== "Done" ? (
                   <button
                     onClick={() => advanceStatus(o)}
-                    className="w-full rounded-xl bg-red-600 py-2.5 text-sm font-bold hover:bg-red-700"
+                    className="w-full rounded-xl bg-blue-600 py-2.5 text-sm font-bold hover:bg-blue-700"
                   >
                     Mark {nextStatus(o.Status)}
                   </button>
