@@ -94,9 +94,9 @@ function StaffPage() {
   if (checking) return <div className="grid h-screen place-items-center text-slate-400">Loading…</div>;
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-16">
+    <div className="min-h-screen bg-[#F8FAFC] pb-16">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4">
-        <div><h1 className="text-xl font-bold text-slate-900">Staff Management</h1><p className="text-xs text-slate-500">Invite workers and control their access</p></div>
+        <div className="flex items-center gap-3"><img src="/menu-wave-logo.png" alt="" className="h-10 w-10 rounded-xl shadow-sm" /><div><h1 className="text-xl font-bold text-slate-900">Staff Management</h1><p className="text-xs text-slate-500">Invite workers and control their access</p></div></div>
         <Link to="/admin" className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">Back to Admin</Link>
       </header>
 
@@ -113,7 +113,7 @@ function StaffPage() {
             <select value={role} onChange={(e) => setRole(e.target.value as ManagedRole)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm">
               <option value="manager">Manager</option><option value="cashier">Cashier</option><option value="kitchen">Kitchen</option>
             </select>
-            <button disabled={loading} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{loading ? "Sending…" : "Send invite"}</button>
+            <button disabled={loading} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{loading ? "Sending…" : "Send invite"}</button>
           </form>
         </section>
 
