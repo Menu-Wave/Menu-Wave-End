@@ -70,11 +70,28 @@ export interface Category {
   display_order: number;
 }
 
+export type StaffRole = "owner" | "manager" | "cashier" | "kitchen" | "platform_admin";
+
 export interface StaffProfile {
   id: string;
   restaurant_id: number;
-  role: "staff" | "manager" | "owner" | "platform_admin";
+  role: StaffRole;
 }
+
+export const canAccessAdmin = (role: StaffRole) =>
+  role === "owner" || role === "manager" || role === "platform_admin";
+
+export const canAccessCashier = (role: StaffRole) =>
+  role === "owner" || role === "manager" || role === "cashier" || role === "platform_admin";
+
+export const canAccessKitchen = (role: StaffRole) =>
+  role === "owner" || role === "manager" || role === "kitchen" || role === "platform_admin";
+
+export const homeRouteForRole = (role: StaffRole): "/admin" | "/cashier" | "/kitchen" => {
+  if (canAccessAdmin(role)) return "/admin";
+  if (role === "kitchen") return "/kitchen";
+  return "/cashier";
+};
 
 // Resolves the logged-in user's staff row (restaurant_id + role).
 // Every route uses this to decide what to show and to gate access.
