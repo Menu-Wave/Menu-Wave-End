@@ -1,0 +1,55 @@
+name: Update TanStack Lockfile
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-lockfile:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Show current TanStack versions
+        run: |
+          echo "Current package.json TanStack dependencies:"
+          grep -n "@tanstack" package.json || true
+
+      - name: Remove old lockfile
+        run: |
+          rm -f bun.lock
+          rm -f bun.lockb
+          rm -f package-lock.json
+
+      - name: Install dependencies and regenerate lockfile
+        run: bun install
+
+      - name: Verify resolved TanStack versions
+        run: |
+          echo "Resolved TanStack packages:"
+          bun pm ls | grep "@tanstack" || true
+
+      - name: Commit updated lockfile
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add package.json bun.lock bun.lockb package-lock.json 2>/dev/null || true
+
+          if git diff --cached --quiet; then
+            echo "No dependency changes to commit."
+          else
+            git commit -m "Update TanStack dependencies and lockfile"
+            git push origin main
+          fi
