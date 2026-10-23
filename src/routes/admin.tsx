@@ -36,6 +36,7 @@ function AdminPage() {
   const [newItemPrice, setNewItemPrice] = useState("");
   const [newItemCategory, setNewItemCategory] = useState("");
   const [newItemEmoji, setNewItemEmoji] = useState("");
+  const [newItemImage, setNewItemImage] = useState<File | null>(null);
   const [addingItem, setAddingItem] = useState(false);
   const [addItemError, setAddItemError] = useState<string | null>(null);
   const [addItemSuccess, setAddItemSuccess] = useState(false);
@@ -151,40 +152,99 @@ function AdminPage() {
     e.preventDefault();
     setAddItemError(null);
     setAddItemSuccess(false);
+
     const trimmedName = newItemName.trim();
     const priceNum = parseFloat(newItemPrice);
     if (!trimmedName) return setAddItemError("Name is required.");
     if (!newItemPrice || isNaN(priceNum) || priceNum <= 0) return setAddItemError("Price must be greater than 0.");
     if (!newItemCategory) return setAddItemError("Please add and select a category first.");
+
+    if (newItemImage) {
+      if (!["image/jpeg", "image/png", "image/webp"].includes(newItemImage.type))
+        return setAddItemError("Food image must be JPEG, PNG or WebP.");
+      if (newItemImage.size > 5 * 1024 * 1024)
+        return setAddItemError("Food image must be 5 MB or smaller.");
+    }
+
     setAddingItem(true);
-    const { data, error } = await supabase
-      .from("menu_items")
-      .insert({
-        name: trimmedName,
-        price: priceNum,
-        category: newItemCategory,
-        emoji: newItemEmoji.trim() || null,
-        is_available: true,
-        restaurant_id: profile!.restaurant_id,
-      })
-      .select()
-      .single();
-    setAddingItem(false);
-    if (error) return setAddItemError(error.message);
-    setMenuItems((prev) => [...prev, data as MenuItem]);
-    setNewItemName("");
-    setNewItemPrice("");
-    setNewItemEmoji("");
-    setAddItemSuccess(true);
-    setTimeout(() => setAddItemSuccess(false), 3000);
+    let imageUrl: string | null = null;
+    let uploadedPath: string | null = null;
+
+    try {
+      if (newItemImage) {
+        const extension =
+          newItemImage.type === "image/png" ? "png" :
+          newItemImage.type === "image/webp" ? "webp" : "jpg";
+        uploadedPath = `${profile!.restaurant_id}/${crypto.randomUUID()}.${extension}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("menu-images")
+          .upload(uploadedPath, newItemImage, {
+            cacheControl: "3600",
+            contentType: newItemImage.type,
+            upsert: false,
+          });
+        if (uploadError) throw uploadError;
+
+        imageUrl = supabase.storage.from("menu-images").getPublicUrl(uploadedPath).data.publicUrl;
+      }
+
+      const { data, error } = await supabase
+        .from("menu_items")
+        .insert({
+          name: trimmedName,
+          price: priceNum,
+          category: newItemCategory,
+          emoji: newItemEmoji.trim() || null,
+          image_url: imageUrl,
+          is_available: true,
+          restaurant_id: profile!.restaurant_id,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setMenuItems((prev) => [...prev, data as MenuItem]);
+      setNewItemName("");
+      setNewItemPrice("");
+      setNewItemEmoji("");
+      setNewItemImage(null);
+      const imageInput = document.getElementById("menu-item-image") as HTMLInputElement | null;
+      if (imageInput) imageInput.value = "";
+      setAddItemSuccess(true);
+      setTimeout(() => setAddItemSuccess(false), 3000);
+    } catch (err) {
+      if (uploadedPath) await supabase.storage.from("menu-images").remove([uploadedPath]);
+      setAddItemError(err instanceof Error ? err.message : "Could not add menu item.");
+    } finally {
+      setAddingItem(false);
+    }
+  };
+
+  const menuImagePath = (url: string | null) => {
+    if (!url) return null;
+    const marker = "/storage/v1/object/public/menu-images/";
+    const index = url.indexOf(marker);
+    return index >= 0 ? decodeURIComponent(url.slice(index + marker.length)) : null;
   };
 
   const deleteMenuItem = async (item: MenuItem) => {
     if (!window.confirm(`Delete "${item.name}"? This cannot be undone.`)) return;
     setDeletingItemId(item.id);
     const { error } = await supabase.from("menu_items").delete().eq("id", item.id);
+    if (error) {
+      setDeletingItemId(null);
+      return setError(error.message);
+    }
+
+    const imagePath = menuImagePath(item.image_url);
+    if (imagePath) {
+      const { error: imageError } = await supabase.storage.from("menu-images").remove([imagePath]);
+      if (imageError) console.warn("Menu item deleted, but its image could not be removed:", imageError.message);
+    }
+
     setDeletingItemId(null);
-    if (error) return setError(error.message);
     setMenuItems((prev) => prev.filter((m) => m.id !== item.id));
   };
 
@@ -244,9 +304,6 @@ function AdminPage() {
           <button onClick={exportCsv} disabled={exporting} className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
             {exporting ? "Exporting…" : "Export CSV"}
           </button>
-          {(profile?.role === "owner" || profile?.role === "manager") && (
-            <Link to="/staff" className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">Staff</Link>
-          )}
           <Link to="/cashier" className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">Cashier</Link>
           <Link to="/kitchen" className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">Kitchen</Link>
           <button onClick={logout} className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">Log out</button>
@@ -359,8 +416,28 @@ function AdminPage() {
               {categories.length === 0 ? <option value="">Add a category first</option> : categories.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
             </select>
             <input type="text" value={newItemEmoji} onChange={(e) => setNewItemEmoji(e.target.value)} placeholder="Emoji (optional)" maxLength={4} className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-            <button type="submit" disabled={addingItem} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50 sm:col-span-3">
-              {addingItem ? "Adding…" : "Add Item"}
+            <label className="rounded-lg border border-dashed border-slate-300 px-3 py-2 text-sm text-slate-600 sm:col-span-2">
+              <span className="mb-1 block font-semibold text-slate-700">Food photo (optional)</span>
+              <input
+                id="menu-item-image"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={(e) => setNewItemImage(e.target.files?.[0] ?? null)}
+                className="block w-full text-xs"
+              />
+              <span className="mt-1 block text-xs text-slate-400">JPEG, PNG or WebP · max 5 MB</span>
+            </label>
+            {newItemImage && (
+              <div className="flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2 sm:col-span-2">
+                <img src={URL.createObjectURL(newItemImage)} alt="Food preview" className="h-14 w-14 rounded-lg object-cover" />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-slate-700">{newItemImage.name}</p>
+                  <p className="text-xs text-slate-500">{(newItemImage.size / 1024 / 1024).toFixed(2)} MB</p>
+                </div>
+              </div>
+            )}
+            <button type="submit" disabled={addingItem || categories.length === 0} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50 sm:col-span-4">
+              {addingItem ? "Uploading & adding…" : "Add Item"}
             </button>
           </form>
           {addItemError && <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-800">{addItemError}</p>}
@@ -377,9 +454,16 @@ function AdminPage() {
               const available = !!m.is_available;
               return (
                 <li key={m.id} className="flex items-center justify-between gap-4 py-3">
-                  <div>
-                    <div className="font-semibold text-slate-800">{m.name}</div>
-                    <div className="text-xs text-slate-500">{m.category} · ₦{Number(m.price ?? 0).toLocaleString()}</div>
+                  <div className="flex min-w-0 items-center gap-3">
+                    {m.image_url ? (
+                      <img src={m.image_url} alt={m.name ?? "Menu item"} className="h-14 w-14 shrink-0 rounded-xl object-cover" />
+                    ) : (
+                      <div className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-slate-100 text-2xl">{m.emoji || "🍽️"}</div>
+                    )}
+                    <div className="min-w-0">
+                      <div className="truncate font-semibold text-slate-800">{m.name}</div>
+                      <div className="text-xs text-slate-500">{m.category} · ₦{Number(m.price ?? 0).toLocaleString()}</div>
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <button onClick={() => toggleAvailable(m)} className={`relative inline-flex h-8 w-14 items-center rounded-full transition ${available ? "bg-green-600" : "bg-slate-300"}`}>
