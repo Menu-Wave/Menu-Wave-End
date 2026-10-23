@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { supabase, getStaffProfile } from "@/lib/supabase";
+import { supabase, getStaffProfile, homeRouteForRole } from "@/lib/supabase";
 
 export const Route = createFileRoute("/")({
   component: LoginPage,
@@ -33,11 +33,7 @@ function LoginPage() {
       setCheckingSession(false);
       return;
     }
-    if (profile.role === "owner" || profile.role === "manager" || profile.role === "platform_admin") {
-      navigate({ to: "/admin" });
-    } else {
-      navigate({ to: "/cashier" });
-    }
+    navigate({ to: homeRouteForRole(profile.role) });
   };
 
   const handleLogin = async (e: React.FormEvent) => {
