@@ -98,14 +98,17 @@ function CashierPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-10">
+    <div className="min-h-screen bg-[#F8FAFC] pb-10">
       <header className="sticky top-0 z-10 border-b border-slate-200 bg-white px-5 py-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <div>
+          <div className="flex items-center gap-3">
+            <img src="/menu-wave-logo.png" alt="" className="h-10 w-10 rounded-xl shadow-sm" />
+            <div>
             <h1 className="text-xl font-bold text-slate-900">Cashier</h1>
             <div className="flex items-center gap-1.5 text-xs text-slate-500">
               <span className={`h-1.5 w-1.5 rounded-full ${connected ? "bg-green-500" : "bg-red-500 animate-pulse"}`} />
               {connected ? "Live" : "Reconnecting…"}
+            </div>
             </div>
           </div>
           <div className="flex gap-2">
@@ -169,7 +172,7 @@ function CashierPage() {
                 <button
                   onClick={() => togglePaid(o)}
                   className={`flex-1 rounded-xl py-2.5 text-sm font-bold text-white ${
-                    paid ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"
+                    paid ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-700"
                   }`}
                 >
                   {paid ? "Paid" : "Pending Payment"}
