@@ -293,15 +293,15 @@ function AdminPage() {
   if (checking) return <div className="grid h-screen place-items-center text-slate-400">Loading…</div>;
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-16">
+    <div className="min-h-screen bg-[#F8FAFC] pb-16">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">Admin</h1>
-          <p className="text-xs text-slate-500">Analytics & menu control</p>
+        <div className="flex items-center gap-3">
+          <img src="/menu-wave-logo.png" alt="" className="h-10 w-10 rounded-xl shadow-sm" />
+          <div><h1 className="text-xl font-bold text-slate-900">Admin</h1><p className="text-xs text-slate-500">Analytics & menu control</p></div>
         </div>
         <div className="flex items-center gap-3">
           {lastUpdated && <span className="hidden text-xs text-slate-400 sm:inline">Updated {lastUpdated.toLocaleTimeString()}</span>}
-          <button onClick={exportCsv} disabled={exporting} className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+          <button onClick={exportCsv} disabled={exporting} className="rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
             {exporting ? "Exporting…" : "Export CSV"}
           </button>
           <Link to="/cashier" className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">Cashier</Link>
@@ -357,9 +357,9 @@ function AdminPage() {
           <h2 className="mb-4 text-base font-bold text-slate-900">Top 5 items</h2>
           <div className="space-y-2">
             {topItems.map((t, i) => (
-              <div key={t.item_name} className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
+              <div key={t.item_name} className="flex items-center justify-between rounded-xl bg-[#F8FAFC] px-4 py-3">
                 <div className="flex items-center gap-3">
-                  <span className="grid h-7 w-7 place-items-center rounded-full bg-red-600 text-xs font-bold text-white">{i + 1}</span>
+                  <span className="grid h-7 w-7 place-items-center rounded-full bg-blue-600 text-xs font-bold text-white">{i + 1}</span>
                   <span className="font-semibold text-slate-800">{t.item_name}</span>
                 </div>
                 <span className="text-sm text-slate-500">{t.times_ordered}x</span>
@@ -373,7 +373,7 @@ function AdminPage() {
           <h2 className="mb-4 text-base font-bold text-slate-900">Current orders by status</h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {byStatus.map((s) => (
-              <div key={s.status} className="rounded-xl bg-slate-50 p-3 text-center">
+              <div key={s.status} className="rounded-xl bg-[#F8FAFC] p-3 text-center">
                 <p className="text-2xl font-extrabold text-slate-900">{s.order_count}</p>
                 <p className="text-xs uppercase text-slate-500">{s.status}</p>
               </div>
@@ -385,7 +385,7 @@ function AdminPage() {
           <h2 className="mb-4 text-base font-bold text-slate-900">Categories <span className="text-slate-400">({categories.length})</span></h2>
           <form onSubmit={addCategory} className="mb-4 flex flex-col gap-2 sm:flex-row">
             <input type="text" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} placeholder="New category name" className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-            <button type="submit" disabled={addingCategory} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
+            <button type="submit" disabled={addingCategory} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
               {addingCategory ? "Adding…" : "Add Category"}
             </button>
           </form>
@@ -428,7 +428,7 @@ function AdminPage() {
               <span className="mt-1 block text-xs text-slate-400">JPEG, PNG or WebP · max 5 MB</span>
             </label>
             {newItemImage && (
-              <div className="flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2 sm:col-span-2">
+              <div className="flex items-center gap-3 rounded-lg bg-[#F8FAFC] px-3 py-2 sm:col-span-2">
                 <img src={URL.createObjectURL(newItemImage)} alt="Food preview" className="h-14 w-14 rounded-lg object-cover" />
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-slate-700">{newItemImage.name}</p>
@@ -436,7 +436,7 @@ function AdminPage() {
                 </div>
               </div>
             )}
-            <button type="submit" disabled={addingItem || categories.length === 0} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50 sm:col-span-4">
+            <button type="submit" disabled={addingItem || categories.length === 0} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50 sm:col-span-4">
               {addingItem ? "Uploading & adding…" : "Add Item"}
             </button>
           </form>
