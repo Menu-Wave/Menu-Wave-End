@@ -29,6 +29,7 @@ function AdminPage() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [exporting, setExporting] = useState(false);
 
+  const [restaurantName, setRestaurantName] = useState("Restaurant");
   const [restaurantLogoUrl, setRestaurantLogoUrl] = useState<string | null>(null);
   const [restaurantLogoFile, setRestaurantLogoFile] = useState<File | null>(null);
   const [savingRestaurantLogo, setSavingRestaurantLogo] = useState(false);
@@ -65,10 +66,11 @@ function AdminPage() {
 
       const { data: restaurant } = await supabase
         .from("restaurants")
-        .select("logo_url")
+        .select("name, logo_url")
         .eq("id", p.restaurant_id)
         .single();
 
+      setRestaurantName(restaurant?.name?.trim() || "Restaurant");
       setRestaurantLogoUrl(restaurant?.logo_url ?? null);
 
       if (p.role === "owner" || p.role === "manager") {
@@ -402,9 +404,16 @@ function AdminPage() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-16">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4">
-        <div className="flex items-center gap-3">
-          <img src="/menu-wave-logo.png" alt="" className="h-10 w-10 rounded-xl shadow-sm" />
-          <div><h1 className="text-xl font-bold text-slate-900">Admin</h1><p className="text-xs text-slate-500">Analytics & menu control</p></div>
+        <div className="flex min-w-0 items-center gap-3">
+          <img
+            src={restaurantLogoUrl || "/menu-wave-logo.png"}
+            alt={restaurantLogoUrl ? `${restaurantName} logo` : "Menu-Wave"}
+            className="h-10 w-10 shrink-0 rounded-xl border border-slate-200 bg-white object-contain p-1 shadow-sm"
+          />
+          <div className="min-w-0">
+            <h1 className="max-w-[260px] truncate text-xl font-bold text-slate-900">{restaurantName}</h1>
+            <p className="text-xs text-slate-500">Admin · Analytics & menu control</p>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           {lastUpdated && <span className="hidden text-xs text-slate-400 sm:inline">Updated {lastUpdated.toLocaleTimeString()}</span>}
@@ -664,6 +673,14 @@ function AdminPage() {
           </ul>
         </section>
       </main>
+
+      <footer className="mx-auto mt-2 max-w-5xl px-5 pb-2 text-center">
+        <div className="inline-flex items-center gap-2 text-xs font-medium text-slate-400">
+          <span>Powered by</span>
+          <img src="/menu-wave-logo.png" alt="" className="h-4 w-4 rounded object-contain" />
+          <span className="font-semibold text-slate-500">Menu-Wave</span>
+        </div>
+      </footer>
 
       {profile && (profile.role === "owner" || profile.role === "manager") && (
         <GuidedTour
