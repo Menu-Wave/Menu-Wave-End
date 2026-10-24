@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState, useCallback, type FormEvent } from "react";
 import { supabase, getStaffProfile, canAccessAdmin, homeRouteForRole, type MenuItem, type Category, type StaffProfile } from "@/lib/supabase";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { GuidedTour } from "@/components/GuidedTour";
 
 export const Route = createFileRoute("/admin")({
   component: AdminPage,
@@ -27,6 +28,13 @@ function AdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [exporting, setExporting] = useState(false);
+
+  const [restaurantLogoUrl, setRestaurantLogoUrl] = useState<string | null>(null);
+  const [restaurantLogoFile, setRestaurantLogoFile] = useState<File | null>(null);
+  const [savingRestaurantLogo, setSavingRestaurantLogo] = useState(false);
+  const [restaurantLogoError, setRestaurantLogoError] = useState<string | null>(null);
+  const [restaurantLogoSuccess, setRestaurantLogoSuccess] = useState(false);
+  const [showManagementTour, setShowManagementTour] = useState(false);
 
   const [newCategoryName, setNewCategoryName] = useState("");
   const [addingCategory, setAddingCategory] = useState(false);
@@ -54,6 +62,22 @@ function AdminPage() {
         return;
       }
       setProfile(p);
+
+      const { data: restaurant } = await supabase
+        .from("restaurants")
+        .select("logo_url")
+        .eq("id", p.restaurant_id)
+        .single();
+
+      setRestaurantLogoUrl(restaurant?.logo_url ?? null);
+
+      if (p.role === "owner" || p.role === "manager") {
+        const tourKey = `menu-wave-management-tour:${p.id}`;
+        if (window.localStorage.getItem(tourKey) !== "completed") {
+          setShowManagementTour(true);
+        }
+      }
+
       setChecking(false);
     })();
   }, [navigate]);
@@ -255,6 +279,89 @@ function AdminPage() {
     if (error) setError(error.message);
   };
 
+  const restaurantLogoPath = (url: string | null) => {
+    if (!url) return null;
+    const marker = "/storage/v1/object/public/restaurant-logos/";
+    const index = url.indexOf(marker);
+    return index >= 0 ? decodeURIComponent(url.slice(index + marker.length)) : null;
+  };
+
+  const updateRestaurantLogo = async (e: FormEvent) => {
+    e.preventDefault();
+    setRestaurantLogoError(null);
+    setRestaurantLogoSuccess(false);
+
+    if (!restaurantLogoFile) {
+      setRestaurantLogoError("Choose a restaurant logo first.");
+      return;
+    }
+
+    if (!["image/jpeg", "image/png", "image/webp"].includes(restaurantLogoFile.type)) {
+      setRestaurantLogoError("Restaurant logo must be JPEG, PNG or WebP.");
+      return;
+    }
+
+    if (restaurantLogoFile.size > 2 * 1024 * 1024) {
+      setRestaurantLogoError("Restaurant logo must be 2 MB or smaller.");
+      return;
+    }
+
+    setSavingRestaurantLogo(true);
+    let uploadedPath: string | null = null;
+
+    try {
+      const extension =
+        restaurantLogoFile.type === "image/png" ? "png" :
+        restaurantLogoFile.type === "image/webp" ? "webp" : "jpg";
+
+      uploadedPath = `${profile!.restaurant_id}/${crypto.randomUUID()}.${extension}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("restaurant-logos")
+        .upload(uploadedPath, restaurantLogoFile, {
+          cacheControl: "3600",
+          contentType: restaurantLogoFile.type,
+          upsert: false,
+        });
+
+      if (uploadError) throw uploadError;
+
+      const newLogoUrl = supabase.storage
+        .from("restaurant-logos")
+        .getPublicUrl(uploadedPath).data.publicUrl;
+
+      const { error: rpcError } = await supabase.rpc("set_restaurant_logo", {
+        p_logo_url: newLogoUrl,
+      });
+
+      if (rpcError) throw rpcError;
+
+      const oldLogoPath = restaurantLogoPath(restaurantLogoUrl);
+      setRestaurantLogoUrl(newLogoUrl);
+      setRestaurantLogoFile(null);
+
+      const input = document.getElementById("restaurant-logo") as HTMLInputElement | null;
+      if (input) input.value = "";
+
+      if (oldLogoPath && oldLogoPath !== uploadedPath) {
+        const { error: removeError } = await supabase.storage
+          .from("restaurant-logos")
+          .remove([oldLogoPath]);
+        if (removeError) console.warn("Logo updated, but the previous logo could not be removed:", removeError.message);
+      }
+
+      setRestaurantLogoSuccess(true);
+      setTimeout(() => setRestaurantLogoSuccess(false), 3000);
+    } catch (err) {
+      if (uploadedPath) {
+        await supabase.storage.from("restaurant-logos").remove([uploadedPath]);
+      }
+      setRestaurantLogoError(err instanceof Error ? err.message : "Could not update restaurant logo.");
+    } finally {
+      setSavingRestaurantLogo(false);
+    }
+  };
+
   const exportCsv = useCallback(async () => {
     setExporting(true);
     setError(null);
@@ -304,12 +411,21 @@ function AdminPage() {
           <button onClick={exportCsv} disabled={exporting} className="rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
             {exporting ? "Exporting…" : "Export CSV"}
           </button>
-          <Link to="/cashier" className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">Cashier</Link>
-          <Link to="/kitchen" className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">Kitchen</Link>
+          <Link id="tour-cashier" to="/cashier" className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">Cashier</Link>
+          <Link id="tour-kitchen" to="/kitchen" className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">Kitchen</Link>
           {(profile?.role === "owner" || profile?.role === "manager") && (
-            <Link to="/staff" className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">
+            <Link id="tour-staff" to="/staff" className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">
               Staff
             </Link>
+          )}
+          {(profile?.role === "owner" || profile?.role === "manager") && (
+            <button
+              type="button"
+              onClick={() => setShowManagementTour(true)}
+              className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700"
+            >
+              Take tour
+            </button>
           )}
           <button onClick={logout} className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">Log out</button>
         </div>
@@ -318,6 +434,70 @@ function AdminPage() {
       {error && <div className="mx-5 mt-4 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-800">{error}</div>}
 
       <main className="mx-auto max-w-5xl space-y-5 p-5">
+        {(profile?.role === "owner" || profile?.role === "manager") && (
+          <section id="tour-restaurant-settings" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mb-4">
+              <h2 className="text-base font-bold text-slate-900">Restaurant Settings</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Your logo appears on the customer ordering page and table QR codes.
+              </p>
+            </div>
+
+            <form onSubmit={updateRestaurantLogo} className="flex flex-col gap-4 sm:flex-row sm:items-center">
+              <div className="grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+                {restaurantLogoFile ? (
+                  <img
+                    src={URL.createObjectURL(restaurantLogoFile)}
+                    alt="New restaurant logo preview"
+                    className="h-full w-full object-contain p-2"
+                  />
+                ) : restaurantLogoUrl ? (
+                  <img
+                    src={restaurantLogoUrl}
+                    alt="Current restaurant logo"
+                    className="h-full w-full object-contain p-2"
+                  />
+                ) : (
+                  <span className="px-2 text-center text-xs font-semibold text-slate-400">No logo yet</span>
+                )}
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <label htmlFor="restaurant-logo" className="mb-1 block text-sm font-semibold text-slate-700">
+                  Restaurant logo
+                </label>
+                <input
+                  id="restaurant-logo"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(e) => {
+                    setRestaurantLogoFile(e.target.files?.[0] ?? null);
+                    setRestaurantLogoError(null);
+                    setRestaurantLogoSuccess(false);
+                  }}
+                  className="block w-full text-sm text-slate-600"
+                />
+                <p className="mt-1 text-xs text-slate-400">JPEG, PNG or WebP · max 2 MB</p>
+
+                <button
+                  type="submit"
+                  disabled={savingRestaurantLogo || !restaurantLogoFile}
+                  className="mt-3 rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {savingRestaurantLogo ? "Updating…" : restaurantLogoUrl ? "Update logo" : "Upload logo"}
+                </button>
+              </div>
+            </form>
+
+            {restaurantLogoError && (
+              <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-800">{restaurantLogoError}</p>
+            )}
+            {restaurantLogoSuccess && (
+              <p className="mt-3 rounded-md bg-green-50 px-3 py-2 text-sm text-green-800">Restaurant logo updated successfully.</p>
+            )}
+          </section>
+        )}
+
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[["Today", today], ["This Week", week], ["This Month", month], ["All Time", all]].map(([label, s]: any) => (
             <div key={label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -386,7 +566,7 @@ function AdminPage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section id="tour-menu-management" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="mb-4 text-base font-bold text-slate-900">Categories <span className="text-slate-400">({categories.length})</span></h2>
           <form onSubmit={addCategory} className="mb-4 flex flex-col gap-2 sm:flex-row">
             <input type="text" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} placeholder="New category name" className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm" />
@@ -484,6 +664,14 @@ function AdminPage() {
           </ul>
         </section>
       </main>
+
+      {profile && (profile.role === "owner" || profile.role === "manager") && (
+        <GuidedTour
+          open={showManagementTour}
+          storageKey={`menu-wave-management-tour:${profile.id}`}
+          onClose={() => setShowManagementTour(false)}
+        />
+      )}
     </div>
   );
 }
