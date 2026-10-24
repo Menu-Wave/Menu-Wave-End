@@ -106,3 +106,35 @@ export async function getStaffProfile(): Promise<StaffProfile | null> {
   if (error || !data) return null;
   return data as StaffProfile;
 }
+
+export const formatCurrency = (n: number, currency = "NGN", decimals = 2) => {
+  const code = String(currency || "NGN").toUpperCase();
+  const symbols: Record<string, string> = {
+    NGN: "₦",
+    GHS: "GH₵",
+    USD: "$",
+    GBP: "£",
+    EUR: "€",
+    KES: "KSh ",
+    ZAR: "R",
+  };
+  const symbol = symbols[code] ?? `${code} `;
+  return `${symbol}${Number(n).toLocaleString(undefined, {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  })}`;
+};
+
+export const currencySymbol = (currency = "NGN") => {
+  const symbols: Record<string, string> = {
+    NGN: "₦",
+    GHS: "GH₵",
+    USD: "$",
+    GBP: "£",
+    EUR: "€",
+    KES: "KSh",
+    ZAR: "R",
+  };
+  const code = String(currency || "NGN").toUpperCase();
+  return symbols[code] ?? code;
+};
