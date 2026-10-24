@@ -139,11 +139,13 @@ export function GuidedTour({ open, storageKey, onClose }: GuidedTourProps) {
 
   return (
     <div className="fixed inset-0 z-[100]">
-      <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-[1px]" />
+      {!spotlightStyle && (
+        <div className="absolute inset-0 bg-slate-950/65" />
+      )}
 
       {spotlightStyle && (
         <div
-          className="pointer-events-none fixed z-[101] rounded-2xl border-2 border-blue-400 shadow-[0_0_0_9999px_rgba(2,6,23,0.18),0_0_35px_rgba(56,189,248,0.45)] transition-all duration-300"
+          className="pointer-events-none fixed z-[101] rounded-2xl border-2 border-sky-400 shadow-[0_0_0_9999px_rgba(2,6,23,0.68),0_0_32px_rgba(56,189,248,0.38)] transition-all duration-300"
           style={spotlightStyle}
         />
       )}
