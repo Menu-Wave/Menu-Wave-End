@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState, useCallback, type FormEvent } from "react";
-import { supabase, getStaffProfile, canAccessAdmin, homeRouteForRole, type MenuItem, type Category, type StaffProfile } from "@/lib/supabase";
+import { supabase, getStaffProfile, canAccessAdmin, homeRouteForRole, type MenuItem, type Category, type StaffProfile, formatCurrency, currencySymbol } from "@/lib/supabase";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { GuidedTour } from "@/components/GuidedTour";
 
@@ -30,6 +30,7 @@ function AdminPage() {
   const [exporting, setExporting] = useState(false);
 
   const [restaurantName, setRestaurantName] = useState("Restaurant");
+  const [restaurantCurrency, setRestaurantCurrency] = useState("NGN");
   const [restaurantLogoUrl, setRestaurantLogoUrl] = useState<string | null>(null);
   const [restaurantLogoFile, setRestaurantLogoFile] = useState<File | null>(null);
   const [savingRestaurantLogo, setSavingRestaurantLogo] = useState(false);
@@ -66,11 +67,12 @@ function AdminPage() {
 
       const { data: restaurant } = await supabase
         .from("restaurants")
-        .select("name, logo_url")
+        .select("name, logo_url, currency")
         .eq("id", p.restaurant_id)
         .single();
 
       setRestaurantName(restaurant?.name?.trim() || "Restaurant");
+      setRestaurantCurrency(restaurant?.currency || "NGN");
       setRestaurantLogoUrl(restaurant?.logo_url ?? null);
 
       if (p.role === "owner" || p.role === "manager") {
@@ -511,8 +513,8 @@ function AdminPage() {
           {[["Today", today], ["This Week", week], ["This Month", month], ["All Time", all]].map(([label, s]: any) => (
             <div key={label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <p className="text-xs font-semibold text-slate-500">{label}</p>
-              <p className="mt-1 text-lg font-extrabold text-slate-900">₦{Number(s?.revenue ?? 0).toLocaleString()}</p>
-              <p className="text-xs text-slate-500">{s?.order_count ?? 0} orders · avg ₦{Math.round(Number(s?.avg_order_value ?? 0)).toLocaleString()}</p>
+              <p className="mt-1 text-lg font-extrabold text-slate-900">{formatCurrency(Number(s?.revenue ?? 0), restaurantCurrency, 0)}</p>
+              <p className="text-xs text-slate-500">{s?.order_count ?? 0} orders · avg {formatCurrency(Math.round(Number(s?.avg_order_value ?? 0)), restaurantCurrency, 0)}</p>
             </div>
           ))}
         </div>
@@ -524,8 +526,8 @@ function AdminPage() {
               <BarChart data={dayData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="day" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => (v >= 1000 ? `₦${(v / 1000).toFixed(0)}k` : `₦${v}`)} />
-                <Tooltip formatter={(v: number) => [`₦${v.toLocaleString()}`, "revenue"]} />
+                <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => v >= 1000 ? `${currencySymbol(restaurantCurrency)}${(v / 1000).toFixed(0)}k` : formatCurrency(v, restaurantCurrency, 0)} />
+                <Tooltip formatter={(v: number) => [formatCurrency(v, restaurantCurrency, 0), "revenue"]} />
                 <Bar dataKey="revenue" fill="#dc2626" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -605,7 +607,7 @@ function AdminPage() {
           <h2 className="mb-4 text-base font-bold text-slate-900">Add new menu item</h2>
           <form onSubmit={addMenuItem} className="grid grid-cols-1 gap-3 sm:grid-cols-4">
             <input type="text" value={newItemName} onChange={(e) => setNewItemName(e.target.value)} placeholder="Item name" className="rounded-lg border border-slate-300 px-3 py-2 text-sm sm:col-span-2" />
-            <input type="number" step="0.01" min="0" value={newItemPrice} onChange={(e) => setNewItemPrice(e.target.value)} placeholder="Price (₦)" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <input type="number" step="0.01" min="0" value={newItemPrice} onChange={(e) => setNewItemPrice(e.target.value)} placeholder={`Price (${currencySymbol(restaurantCurrency)})`} className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
             <select value={newItemCategory} onChange={(e) => setNewItemCategory(e.target.value)} disabled={categories.length === 0} className="rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100">
               {categories.length === 0 ? <option value="">Add a category first</option> : categories.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
             </select>
@@ -656,7 +658,7 @@ function AdminPage() {
                     )}
                     <div className="min-w-0">
                       <div className="truncate font-semibold text-slate-800">{m.name}</div>
-                      <div className="text-xs text-slate-500">{m.category} · ₦{Number(m.price ?? 0).toLocaleString()}</div>
+                      <div className="text-xs text-slate-500">{m.category} · {formatCurrency(Number(m.price ?? 0), restaurantCurrency)}</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
