@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { supabase, getStaffProfile, nextStatus, canAccessAdmin, canAccessCashier, homeRouteForRole, type Order, type StaffProfile } from "@/lib/supabase";
+import { supabase, getStaffProfile, nextStatus, canAccessAdmin, canAccessCashier, homeRouteForRole, type Order, type StaffProfile, formatCurrency } from "@/lib/supabase";
 
 export const Route = createFileRoute("/cashier")({
   component: CashierPage,
@@ -21,6 +21,7 @@ function CashierPage() {
   const [search, setSearch] = useState("");
   const [connected, setConnected] = useState(true);
   const [checking, setChecking] = useState(true);
+  const [restaurantCurrency, setRestaurantCurrency] = useState("NGN");
 
   useEffect(() => {
     (async () => {
@@ -34,6 +35,12 @@ function CashierPage() {
         return;
       }
       setProfile(p);
+      const { data: restaurant } = await supabase
+        .from("restaurants")
+        .select("currency")
+        .eq("id", p.restaurant_id)
+        .single();
+      setRestaurantCurrency(restaurant?.currency || "NGN");
       setChecking(false);
     })();
   }, [navigate]);
@@ -167,7 +174,7 @@ function CashierPage() {
                 </span>
               </div>
               <p className="mb-3 whitespace-pre-line text-sm text-slate-600">{o.Order}</p>
-              <p className="mb-3 text-xl font-extrabold text-slate-900">₦{Number(o.Amount ?? 0).toLocaleString()}</p>
+              <p className="mb-3 text-xl font-extrabold text-slate-900">{formatCurrency(Number(o.Amount ?? 0), restaurantCurrency)}</p>
               <div className="flex gap-2">
                 <button
                   onClick={() => togglePaid(o)}
