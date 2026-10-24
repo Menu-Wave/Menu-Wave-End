@@ -306,6 +306,11 @@ function AdminPage() {
           </button>
           <Link to="/cashier" className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">Cashier</Link>
           <Link to="/kitchen" className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">Kitchen</Link>
+          {(profile?.role === "owner" || profile?.role === "manager") && (
+            <Link to="/staff" className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">
+              Staff
+            </Link>
+          )}
           <button onClick={logout} className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">Log out</button>
         </div>
       </header>
