@@ -1,6 +1,8 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState, useCallback, useRef } from "react";
-import { supabase, getStaffProfile, nextStatus, canAccessAdmin, canAccessKitchen, homeRouteForRole, type Order, type StaffProfile } from "@/lib/supabase";
+import { supabase, getStaffProfile, nextStatus, canAccessKitchen, homeRouteForRole, type Order, type StaffProfile } from "@/lib/supabase";
+import { AppShell } from "@/components/AppShell";
+import { AppLoadingSkeleton } from "@/components/AppLoadingSkeleton";
 
 export const Route = createFileRoute("/kitchen")({
   component: KitchenPage,
@@ -74,40 +76,15 @@ function KitchenPage() {
     await supabase.from("orders").update({ Status: next }).eq("id", o.id);
   };
 
-  const logout = async () => {
-    await supabase.auth.signOut();
-    navigate({ to: "/" });
-  };
 
-  if (checking) return <div className="grid h-screen place-items-center text-slate-400">Loading…</div>;
+  if (checking || !profile) return <AppLoadingSkeleton dark />;
 
   return (
-    <div className="min-h-screen bg-slate-900 pb-10 text-white">
+    <AppShell profile={profile} active="kitchen" title="Kitchen" subtitle={connected ? "Live preparation board · Connected" : "Live preparation board · Reconnecting…"} darkContent>
       {/* Simple beep, no external asset needed */}
       <audio ref={audioRef} src="data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=" />
 
-      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-700 bg-slate-900 px-5 py-4">
-        <div className="flex items-center gap-3">
-          <img src="/menu-wave-logo.png" alt="" className="h-10 w-10 rounded-xl" />
-          <div>
-          <h1 className="text-xl font-bold">Kitchen</h1>
-          <div className="flex items-center gap-1.5 text-xs text-slate-400">
-            <span className={`h-1.5 w-1.5 rounded-full ${connected ? "bg-green-500" : "bg-red-500 animate-pulse"}`} />
-            {connected ? "Live" : "Reconnecting…"}
-          </div>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          {profile && canAccessAdmin(profile.role) && (
-            <Link to="/admin" className="rounded-full bg-slate-700 px-4 py-2 text-sm font-semibold">
-              Admin
-            </Link>
-          )}
-          <button onClick={logout} className="rounded-full bg-slate-700 px-4 py-2 text-sm font-semibold">
-            Log out
-          </button>
-        </div>
-      </header>
+
 
       <main className="mx-auto grid max-w-6xl grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
         {orders.length === 0 && (
@@ -157,6 +134,6 @@ function KitchenPage() {
           );
         })}
       </main>
-    </div>
+    </AppShell>
   );
 }
