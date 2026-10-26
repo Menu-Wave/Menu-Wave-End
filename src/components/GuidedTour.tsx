@@ -33,6 +33,12 @@ export function GuidedTour({ open, storageKey, onClose }: GuidedTourProps) {
         targetId: "tour-menu-management",
       },
       {
+        title: "Add your first menu item",
+        description:
+          "Enter the dish name, price and category, then add an appetizing description or food photo. You can also mark an item as Popular or New before adding it to your menu.",
+        targetId: "tour-add-menu-item",
+      },
+      {
         title: "Cashier",
         description:
           "Open the cashier workspace to receive customer orders, confirm payments and manage the front-of-house order flow.",
