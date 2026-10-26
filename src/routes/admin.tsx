@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState, useCallback, type FormEvent } from "react";
 import { supabase, getStaffProfile, canAccessAdmin, homeRouteForRole, type MenuItem, type Category, type StaffProfile, formatCurrency, currencySymbol } from "@/lib/supabase";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { ArrowDown, ArrowUp, Eye, Flame, Sparkles } from "lucide-react";
 import { GuidedTour } from "@/components/GuidedTour";
 import { AppShell } from "@/components/AppShell";
@@ -12,6 +12,7 @@ export const Route = createFileRoute("/admin")({
 });
 
 type StatsRow = { order_count: number; revenue: number; avg_order_value: number };
+type PeriodComparison = { revenue: number; orders: number; revenuePct: number | null; ordersPct: number | null };
 
 function AdminPage() {
   const navigate = useNavigate();
@@ -22,6 +23,12 @@ function AdminPage() {
   const [week, setWeek] = useState<StatsRow | null>(null);
   const [month, setMonth] = useState<StatsRow | null>(null);
   const [all, setAll] = useState<StatsRow | null>(null);
+  const [comparisons, setComparisons] = useState<Record<"Today" | "This Week" | "This Month", PeriodComparison | null>>({
+    Today: null,
+    "This Week": null,
+    "This Month": null,
+  });
+  const [paymentSummary, setPaymentSummary] = useState({ paid: 0, unpaid: 0 });
   const [revByDay, setRevByDay] = useState<any[]>([]);
   const [byHour, setByHour] = useState<any[]>([]);
   const [byStatus, setByStatus] = useState<any[]>([]);
@@ -92,6 +99,65 @@ function AdminPage() {
     })();
   }, [navigate]);
 
+  const percentChange = (current: number, previous: number) => {
+    if (previous === 0) return current === 0 ? 0 : null;
+    return ((current - previous) / previous) * 100;
+  };
+
+  const sumOrders = (rows: any[], start: Date, end: Date) => {
+    const inRange = rows.filter((row) => {
+      const created = new Date(row.created_at).getTime();
+      return created >= start.getTime() && created < end.getTime();
+    });
+    return {
+      revenue: inRange.reduce((sum, row) => sum + Number(row.Amount ?? 0), 0),
+      orders: inRange.length,
+    };
+  };
+
+  const buildPeriodComparisons = (rows: any[]) => {
+    const now = new Date();
+
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+    const elapsedToday = now.getTime() - todayStart.getTime();
+    const yesterdayStart = new Date(todayStart);
+    yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+    const yesterdayComparableEnd = new Date(yesterdayStart.getTime() + elapsedToday);
+
+    const weekStart = new Date(todayStart);
+    const mondayOffset = (weekStart.getDay() + 6) % 7;
+    weekStart.setDate(weekStart.getDate() - mondayOffset);
+    const elapsedWeek = now.getTime() - weekStart.getTime();
+    const previousWeekStart = new Date(weekStart);
+    previousWeekStart.setDate(previousWeekStart.getDate() - 7);
+    const previousWeekComparableEnd = new Date(previousWeekStart.getTime() + elapsedWeek);
+
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const previousMonthEnd = new Date(now.getFullYear(), now.getMonth(), 1);
+    const elapsedMonth = now.getTime() - monthStart.getTime();
+    const previousMonthComparableEnd = new Date(
+      Math.min(previousMonthStart.getTime() + elapsedMonth, previousMonthEnd.getTime())
+    );
+
+    const makeComparison = (currentStart: Date, currentEnd: Date, previousStart: Date, previousEnd: Date): PeriodComparison => {
+      const current = sumOrders(rows, currentStart, currentEnd);
+      const previous = sumOrders(rows, previousStart, previousEnd);
+      return {
+        ...current,
+        revenuePct: percentChange(current.revenue, previous.revenue),
+        ordersPct: percentChange(current.orders, previous.orders),
+      };
+    };
+
+    return {
+      Today: makeComparison(todayStart, now, yesterdayStart, yesterdayComparableEnd),
+      "This Week": makeComparison(weekStart, now, previousWeekStart, previousWeekComparableEnd),
+      "This Month": makeComparison(monthStart, now, previousMonthStart, previousMonthComparableEnd),
+    };
+  };
+
   const loadAll = useCallback(async () => {
     const results = await Promise.all([
       supabase.from("v_stats_today").select("*").single(),
@@ -104,6 +170,7 @@ function AdminPage() {
       supabase.from("v_top_items_best_effort").select("*").limit(5),
       supabase.from("menu_items").select("*").order("id"),
       supabase.from("categories").select("*").order("display_order"),
+      supabase.from("orders").select("created_at, Amount, payment_status").gte("created_at", new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1).toISOString()),
     ]);
     setToday((results[0].data as StatsRow) ?? null);
     setWeek((results[1].data as StatsRow) ?? null);
@@ -115,6 +182,12 @@ function AdminPage() {
     setTopItems((results[7].data as any[]) ?? []);
     setMenuItems((results[8].data as MenuItem[]) ?? []);
     setCategories((results[9].data as Category[]) ?? []);
+    const recentOrders = (results[10].data as any[]) ?? [];
+    setComparisons(buildPeriodComparisons(recentOrders));
+    setPaymentSummary({
+      paid: recentOrders.filter((row) => String(row.payment_status ?? "").toLowerCase() === "paid").length,
+      unpaid: recentOrders.filter((row) => String(row.payment_status ?? "").toLowerCase() !== "paid").length,
+    });
     setLastUpdated(new Date());
   }, []);
 
@@ -545,28 +618,59 @@ function AdminPage() {
           </section>
         )}
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {[["Today", today], ["This Week", week], ["This Month", month], ["All Time", all]].map(([label, s]: any) => (
-            <div key={label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <p className="text-xs font-semibold text-slate-500">{label}</p>
-              <p className="mt-1 text-lg font-extrabold text-slate-900">{formatCurrency(Number(s?.revenue ?? 0), restaurantCurrency, 0)}</p>
-              <p className="text-xs text-slate-500">{s?.order_count ?? 0} orders · avg {formatCurrency(Math.round(Number(s?.avg_order_value ?? 0)), restaurantCurrency, 0)}</p>
-            </div>
-          ))}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {[["Today", today, "vs yesterday"], ["This Week", week, "vs same time last week"], ["This Month", month, "vs same time last month"], ["All Time", all, ""]].map(([label, stats, comparisonLabel]: any) => {
+            const comparison = label === "All Time" ? null : comparisons[label as "Today" | "This Week" | "This Month"];
+            const pct = comparison?.revenuePct ?? null;
+            const increased = pct !== null && pct > 0;
+            const decreased = pct !== null && pct < 0;
+            return (
+              <div key={label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <p className="text-xs font-semibold text-slate-500">{label}</p>
+                <p className="mt-1 text-xl font-extrabold text-slate-900">{formatCurrency(Number(stats?.revenue ?? 0), restaurantCurrency, 0)}</p>
+                <p className="mt-1 text-xs text-slate-500">{stats?.order_count ?? 0} orders · avg {formatCurrency(Math.round(Number(stats?.avg_order_value ?? 0)), restaurantCurrency, 0)}</p>
+                {comparison && (
+                  <div className={`mt-3 flex items-center gap-1 text-xs font-bold ${increased ? "text-emerald-600" : decreased ? "text-red-600" : "text-slate-500"}`}>
+                    {increased ? <ArrowUp className="h-3.5 w-3.5" /> : decreased ? <ArrowDown className="h-3.5 w-3.5" /> : null}
+                    <span>{pct === null ? "New activity" : `${Math.abs(pct).toFixed(1)}% ${increased ? "increase" : decreased ? "decrease" : "change"}`}</span>
+                    <span className="font-medium text-slate-400">{comparisonLabel}</span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="mb-4 text-base font-bold text-slate-900">Revenue — last 30 days</h2>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={dayData}>
-                <CartesianGrid strokeDasharray="3 3" />
+              <LineChart data={dayData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="day" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => v >= 1000 ? `${currencySymbol(restaurantCurrency)}${(v / 1000).toFixed(0)}k` : formatCurrency(v, restaurantCurrency, 0)} />
-                <Tooltip formatter={(v: number) => [formatCurrency(v, restaurantCurrency, 0), "revenue"]} />
-                <Bar dataKey="revenue" fill="#dc2626" radius={[4, 4, 0, 0]} />
-              </BarChart>
+                <Tooltip formatter={(v: number) => [formatCurrency(v, restaurantCurrency, 0), "Revenue"]} />
+                <Line type="monotone" dataKey="revenue" stroke="#2563eb" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+              </LineChart>
             </ResponsiveContainer>
+          </div>
+        </section>
+
+        <section className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Average order today</p>
+            <p className="mt-2 text-xl font-extrabold text-slate-900">{formatCurrency(Number(today?.avg_order_value ?? 0), restaurantCurrency, 0)}</p>
+            <p className="mt-1 text-xs text-slate-500">Average value across today's orders</p>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Busiest hour</p>
+            <p className="mt-2 text-xl font-extrabold text-slate-900">{(() => { const busiest = hourData.reduce((best, row) => row.orders > best.orders ? row : best, { hour: "—", orders: 0 }); return busiest.orders > 0 ? busiest.hour : "—"; })()}</p>
+            <p className="mt-1 text-xs text-slate-500">Based on recorded order volume</p>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Payment mix</p>
+            <p className="mt-2 text-xl font-extrabold text-slate-900">{paymentSummary.paid} paid</p>
+            <p className="mt-1 text-xs text-slate-500">{paymentSummary.unpaid} unpaid · recent comparison window</p>
           </div>
         </section>
 
@@ -639,7 +743,7 @@ function AdminPage() {
           </ul>
         </section>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section id="tour-add-menu-item" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="mb-4 text-base font-bold text-slate-900">Add new menu item</h2>
           <form onSubmit={addMenuItem} className="grid grid-cols-1 gap-3 sm:grid-cols-4">
             <input type="text" value={newItemName} onChange={(e) => setNewItemName(e.target.value)} placeholder="Item name" className="rounded-lg border border-slate-300 px-3 py-2 text-sm sm:col-span-2" />
