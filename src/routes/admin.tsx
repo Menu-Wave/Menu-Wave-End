@@ -402,7 +402,7 @@ function AdminPage() {
       // internal IDs/tenant keys just because a new database column was added.
       const { data, error } = await supabase
         .from("orders")
-        .select("created_at, Name, Order, Amount, Status, table_number, order_number, payment_status")
+        .select("created_at, Name, Order, Amount, Status, table_number, public_code, payment_status")
         .order("created_at", { ascending: false });
       if (error) throw error;
 
@@ -414,7 +414,7 @@ function AdminPage() {
 
       const currencyCode = String(restaurantCurrency || "NGN").toUpperCase();
       const headers = [
-        "Order Number",
+        "Order Code",
         "Date",
         "Time",
         "Customer Name",
@@ -434,8 +434,11 @@ function AdminPage() {
         const createdAt = new Date(row.created_at);
         const validDate = !Number.isNaN(createdAt.getTime());
         return [
-          row.order_number ?? "",
-          validDate ? createdAt.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }) : "",
+          row.public_code ?? "",
+          // Prefix with an invisible zero-width space so spreadsheet apps keep this
+          // as display text instead of converting it to a date serial (which can
+          // render as ####### when the column is narrow).
+          validDate ? `\u200B${createdAt.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}` : "",
           validDate ? createdAt.toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit", hour12: true }) : "",
           row.Name ?? "",
           row.table_number ?? "",
