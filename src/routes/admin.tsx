@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState, useCallback, type FormEvent } from "react";
 import { supabase, getStaffProfile, canAccessAdmin, homeRouteForRole, type MenuItem, type Category, type StaffProfile, formatCurrency, currencySymbol } from "@/lib/supabase";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { ArrowDown, ArrowUp, Eye, Flame, Sparkles } from "lucide-react";
 import { GuidedTour } from "@/components/GuidedTour";
 
 export const Route = createFileRoute("/admin")({
@@ -46,6 +47,9 @@ function AdminPage() {
   const [newItemPrice, setNewItemPrice] = useState("");
   const [newItemCategory, setNewItemCategory] = useState("");
   const [newItemEmoji, setNewItemEmoji] = useState("");
+  const [newItemDescription, setNewItemDescription] = useState("");
+  const [newItemPopular, setNewItemPopular] = useState(false);
+  const [newItemNew, setNewItemNew] = useState(false);
   const [newItemImage, setNewItemImage] = useState<File | null>(null);
   const [addingItem, setAddingItem] = useState(false);
   const [addItemError, setAddItemError] = useState<string | null>(null);
@@ -160,6 +164,21 @@ function AdminPage() {
     setNewCategoryName("");
   };
 
+  const moveCategory = async (category: Category, direction: -1 | 1) => {
+    const sorted = [...categories].sort((a, b) => a.display_order - b.display_order);
+    const index = sorted.findIndex((c) => c.id === category.id);
+    const other = sorted[index + direction];
+    if (!other) return;
+    const currentOrder = category.display_order;
+    const otherOrder = other.display_order;
+    setCategories((prev) => prev.map((c) => c.id === category.id ? { ...c, display_order: otherOrder } : c.id === other.id ? { ...c, display_order: currentOrder } : c).sort((a,b)=>a.display_order-b.display_order));
+    const [a, b] = await Promise.all([
+      supabase.from("categories").update({ display_order: otherOrder }).eq("id", category.id),
+      supabase.from("categories").update({ display_order: currentOrder }).eq("id", other.id),
+    ]);
+    if (a.error || b.error) { setError(a.error?.message || b.error?.message || "Could not reorder categories."); await loadAll(); }
+  };
+
   const deleteCategory = async (category: Category) => {
     const itemsIn = menuItems.filter((m) => m.category === category.name).length;
     const warning =
@@ -224,6 +243,10 @@ function AdminPage() {
           price: priceNum,
           category: newItemCategory,
           emoji: newItemEmoji.trim() || null,
+          description: newItemDescription.trim() || null,
+          is_popular: newItemPopular,
+          is_new: newItemNew,
+          display_order: menuItems.filter((m) => m.category === newItemCategory).length + 1,
           image_url: imageUrl,
           is_available: true,
           restaurant_id: profile!.restaurant_id,
@@ -237,6 +260,9 @@ function AdminPage() {
       setNewItemName("");
       setNewItemPrice("");
       setNewItemEmoji("");
+      setNewItemDescription("");
+      setNewItemPopular(false);
+      setNewItemNew(false);
       setNewItemImage(null);
       const imageInput = document.getElementById("menu-item-image") as HTMLInputElement | null;
       if (imageInput) imageInput.value = "";
@@ -595,7 +621,7 @@ function AdminPage() {
                     <div className="font-semibold text-slate-800">{c.name}</div>
                     <div className="text-xs text-slate-500">{itemCount} item{itemCount === 1 ? "" : "s"}</div>
                   </div>
-                  <button onClick={() => deleteCategory(c)} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50">Delete</button>
+                  <div className="flex items-center gap-1"><button onClick={() => moveCategory(c, -1)} className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100" title="Move up"><ArrowUp className="h-4 w-4" /></button><button onClick={() => moveCategory(c, 1)} className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100" title="Move down"><ArrowDown className="h-4 w-4" /></button><button onClick={() => deleteCategory(c)} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50">Delete</button></div>
                 </li>
               );
             })}
@@ -612,6 +638,9 @@ function AdminPage() {
               {categories.length === 0 ? <option value="">Add a category first</option> : categories.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
             </select>
             <input type="text" value={newItemEmoji} onChange={(e) => setNewItemEmoji(e.target.value)} placeholder="Emoji (optional)" maxLength={4} className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <textarea value={newItemDescription} onChange={(e) => setNewItemDescription(e.target.value)} placeholder="Short appetizing description (optional)" maxLength={180} rows={2} className="rounded-lg border border-slate-300 px-3 py-2 text-sm sm:col-span-4" />
+            <label className="flex items-center gap-2 rounded-lg bg-orange-50 px-3 py-2 text-sm font-semibold text-orange-800 sm:col-span-2"><input type="checkbox" checked={newItemPopular} onChange={(e)=>setNewItemPopular(e.target.checked)} /> 🔥 Mark as popular</label>
+            <label className="flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 sm:col-span-2"><input type="checkbox" checked={newItemNew} onChange={(e)=>setNewItemNew(e.target.checked)} /> ✨ Mark as new</label>
             <label className="rounded-lg border border-dashed border-slate-300 px-3 py-2 text-sm text-slate-600 sm:col-span-2">
               <span className="mb-1 block font-semibold text-slate-700">Food photo (optional)</span>
               <input
@@ -658,7 +687,7 @@ function AdminPage() {
                     )}
                     <div className="min-w-0">
                       <div className="truncate font-semibold text-slate-800">{m.name}</div>
-                      <div className="text-xs text-slate-500">{m.category} · {formatCurrency(Number(m.price ?? 0), restaurantCurrency)}</div>
+                      <div className="text-xs text-slate-500">{m.category} · {formatCurrency(Number(m.price ?? 0), restaurantCurrency)}</div>{m.description && <p className="mt-1 line-clamp-1 text-xs text-slate-400">{m.description}</p>}<div className="mt-1 flex gap-1">{m.is_popular && <span className="rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-bold text-orange-700">🔥 Popular</span>}{m.is_new && <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">✨ New</span>}</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
