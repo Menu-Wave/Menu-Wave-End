@@ -4,6 +4,8 @@ import { supabase, getStaffProfile, canAccessAdmin, homeRouteForRole, type MenuI
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { ArrowDown, ArrowUp, Eye, Flame, Sparkles } from "lucide-react";
 import { GuidedTour } from "@/components/GuidedTour";
+import { AppShell } from "@/components/AppShell";
+import { AppLoadingSkeleton } from "@/components/AppLoadingSkeleton";
 
 export const Route = createFileRoute("/admin")({
   component: AdminPage,
@@ -427,46 +429,10 @@ function AdminPage() {
     navigate({ to: "/" });
   };
 
-  if (checking) return <div className="grid h-screen place-items-center text-slate-400">Loading…</div>;
+  if (checking || !profile) return <AppLoadingSkeleton />;
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] pb-16">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4">
-        <div className="flex min-w-0 items-center gap-3">
-          <img
-            src={restaurantLogoUrl || "/menu-wave-logo.png"}
-            alt={restaurantLogoUrl ? `${restaurantName} logo` : "Menu-Wave"}
-            className="h-10 w-10 shrink-0 rounded-xl border border-slate-200 bg-white object-contain p-1 shadow-sm"
-          />
-          <div className="min-w-0">
-            <h1 className="max-w-[260px] truncate text-xl font-bold text-slate-900">{restaurantName}</h1>
-            <p className="text-xs text-slate-500">Admin · Analytics & menu control</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          {lastUpdated && <span className="hidden text-xs text-slate-400 sm:inline">Updated {lastUpdated.toLocaleTimeString()}</span>}
-          <button onClick={exportCsv} disabled={exporting} className="rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
-            {exporting ? "Exporting…" : "Export CSV"}
-          </button>
-          <Link id="tour-cashier" to="/cashier" className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">Cashier</Link>
-          <Link id="tour-kitchen" to="/kitchen" className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">Kitchen</Link>
-          {(profile?.role === "owner" || profile?.role === "manager") && (
-            <Link id="tour-staff" to="/staff" className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">
-              Staff
-            </Link>
-          )}
-          {(profile?.role === "owner" || profile?.role === "manager") && (
-            <button
-              type="button"
-              onClick={() => setShowManagementTour(true)}
-              className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700"
-            >
-              Take tour
-            </button>
-          )}
-          <button onClick={logout} className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">Log out</button>
-        </div>
-      </header>
+      <AppShell profile={profile} active="admin" title={restaurantName} subtitle="Admin · Analytics & menu control" restaurantName={restaurantName} restaurantLogoUrl={restaurantLogoUrl} actions={<><button onClick={exportCsv} disabled={exporting} className="hidden rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 sm:inline">{exporting ? "Exporting…" : "Export CSV"}</button>{(profile.role === "owner" || profile.role === "manager") && <button type="button" onClick={() => setShowManagementTour(true)} className="rounded-full bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 sm:px-4 sm:text-sm">Take tour</button>}</>}>
 
       {error && <div className="mx-5 mt-4 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-800">{error}</div>}
 
@@ -705,13 +671,6 @@ function AdminPage() {
         </section>
       </main>
 
-      <footer className="mx-auto mt-2 max-w-5xl px-5 pb-2 text-center">
-        <div className="inline-flex items-center gap-2 text-xs font-medium text-slate-400">
-          <span>Powered by</span>
-          <img src="/menu-wave-logo.png" alt="" className="h-4 w-4 rounded object-contain" />
-          <span className="font-semibold text-slate-500">Menu-Wave</span>
-        </div>
-      </footer>
 
       {profile && (profile.role === "owner" || profile.role === "manager") && (
         <GuidedTour
@@ -720,6 +679,6 @@ function AdminPage() {
           onClose={() => setShowManagementTour(false)}
         />
       )}
-    </div>
+      </AppShell>
   );
 }
