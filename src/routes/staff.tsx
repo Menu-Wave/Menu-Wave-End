@@ -1,6 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { getStaffProfile, supabase, type StaffProfile, type StaffRole } from "@/lib/supabase";
+import { AppShell } from "@/components/AppShell";
+import { AppLoadingSkeleton } from "@/components/AppLoadingSkeleton";
 
 export const Route = createFileRoute("/staff")({ component: StaffPage });
 
@@ -91,14 +93,11 @@ function StaffPage() {
     } catch (e) { setError(e instanceof Error ? e.message : "Could not remove worker."); }
   };
 
-  if (checking) return <div className="grid h-screen place-items-center text-slate-400">Loading…</div>;
+  if (checking || !profile) return <AppLoadingSkeleton />;
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] pb-16">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4">
-        <div className="flex items-center gap-3"><img src="/menu-wave-logo.png" alt="" className="h-10 w-10 rounded-xl shadow-sm" /><div><h1 className="text-xl font-bold text-slate-900">Staff Management</h1><p className="text-xs text-slate-500">Invite workers and control their access</p></div></div>
-        <Link to="/admin" className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">Back to Admin</Link>
-      </header>
+    <AppShell profile={profile} active="staff" title="Staff Management" subtitle="Invite workers and control their access">
+
 
       <main className="mx-auto max-w-5xl space-y-5 p-5">
         {error && <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>}
@@ -131,6 +130,6 @@ function StaffPage() {
           </div>
         </section>
       </main>
-    </div>
+    </AppShell>
   );
 }
