@@ -1,6 +1,8 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { supabase, getStaffProfile, nextStatus, canAccessAdmin, canAccessCashier, homeRouteForRole, type Order, type StaffProfile, formatCurrency } from "@/lib/supabase";
+import { supabase, getStaffProfile, nextStatus, canAccessCashier, homeRouteForRole, type Order, type StaffProfile } from "@/lib/supabase";
+import { AppShell } from "@/components/AppShell";
+import { AppLoadingSkeleton } from "@/components/AppLoadingSkeleton";
 
 export const Route = createFileRoute("/cashier")({
   component: CashierPage,
@@ -21,7 +23,6 @@ function CashierPage() {
   const [search, setSearch] = useState("");
   const [connected, setConnected] = useState(true);
   const [checking, setChecking] = useState(true);
-  const [restaurantCurrency, setRestaurantCurrency] = useState("NGN");
 
   useEffect(() => {
     (async () => {
@@ -35,12 +36,6 @@ function CashierPage() {
         return;
       }
       setProfile(p);
-      const { data: restaurant } = await supabase
-        .from("restaurants")
-        .select("currency")
-        .eq("id", p.restaurant_id)
-        .single();
-      setRestaurantCurrency(restaurant?.currency || "NGN");
       setChecking(false);
     })();
   }, [navigate]);
@@ -89,12 +84,8 @@ function CashierPage() {
     await supabase.from("orders").update({ Status: next }).eq("id", o.id);
   };
 
-  const logout = async () => {
-    await supabase.auth.signOut();
-    navigate({ to: "/" });
-  };
 
-  if (checking) return <div className="grid h-screen place-items-center text-slate-400">Loading…</div>;
+  if (checking || !profile) return <AppLoadingSkeleton />;
 
   const counts = {
     All: orders.length,
@@ -105,51 +96,8 @@ function CashierPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] pb-10">
-      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white px-5 py-4">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <img src="/menu-wave-logo.png" alt="" className="h-10 w-10 rounded-xl shadow-sm" />
-            <div>
-            <h1 className="text-xl font-bold text-slate-900">Cashier</h1>
-            <div className="flex items-center gap-1.5 text-xs text-slate-500">
-              <span className={`h-1.5 w-1.5 rounded-full ${connected ? "bg-green-500" : "bg-red-500 animate-pulse"}`} />
-              {connected ? "Live" : "Reconnecting…"}
-            </div>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            {profile && canAccessAdmin(profile.role) && (
-              <Link to="/admin" className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">
-                Admin
-              </Link>
-            )}
-            <button onClick={logout} className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">
-              Log out
-            </button>
-          </div>
-        </div>
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search order code, name, or table #…"
-          className="mb-3 w-full rounded-full border border-slate-300 px-4 py-2 text-sm"
-        />
-        <div className="flex flex-wrap gap-2">
-          {(["All", "New", "Preparing", "Ready", "Done"] as const).map((s) => (
-            <button
-              key={s}
-              onClick={() => setFilter(s)}
-              className={`rounded-full px-4 py-1.5 text-sm font-semibold ${
-                filter === s ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"
-              }`}
-            >
-              {s} {counts[s]}
-            </button>
-          ))}
-        </div>
-      </header>
+    <AppShell profile={profile} active="cashier" title="Cashier" subtitle={connected ? "Live orders · Connected" : "Live orders · Reconnecting…"}>
+      <div className="border-b border-slate-200 bg-white px-4 py-3 sm:px-6"><div className="mx-auto max-w-5xl"><input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search order code, name, or table #…" className="mb-3 w-full rounded-full border border-slate-300 px-4 py-2 text-sm" /><div className="flex flex-wrap gap-2">{(["All", "New", "Preparing", "Ready", "Done"] as const).map((s) => <button key={s} onClick={() => setFilter(s)} className={`rounded-full px-4 py-1.5 text-sm font-semibold ${filter === s ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"}`}>{s} {counts[s]}</button>)}</div></div></div>
 
       <main className="mx-auto max-w-2xl space-y-3 p-4">
         {visible.length === 0 && <p className="py-10 text-center text-sm text-slate-400">No orders in this view.</p>}
@@ -174,7 +122,7 @@ function CashierPage() {
                 </span>
               </div>
               <p className="mb-3 whitespace-pre-line text-sm text-slate-600">{o.Order}</p>
-              <p className="mb-3 text-xl font-extrabold text-slate-900">{formatCurrency(Number(o.Amount ?? 0), restaurantCurrency)}</p>
+              <p className="mb-3 text-xl font-extrabold text-slate-900">₦{Number(o.Amount ?? 0).toLocaleString()}</p>
               <div className="flex gap-2">
                 <button
                   onClick={() => togglePaid(o)}
@@ -197,6 +145,6 @@ function CashierPage() {
           );
         })}
       </main>
-    </div>
+    </AppShell>
   );
 }
