@@ -398,17 +398,58 @@ function AdminPage() {
     setExporting(true);
     setError(null);
     try {
-      const { data, error } = await supabase.from("orders").select("*").order("created_at", { ascending: false });
+      // Keep the export contract explicit: restaurant owners should never receive
+      // internal IDs/tenant keys just because a new database column was added.
+      const { data, error } = await supabase
+        .from("orders")
+        .select("created_at, Name, Order, Amount, Status, table_number, order_number, payment_status")
+        .order("created_at", { ascending: false });
       if (error) throw error;
+
       const rows = data ?? [];
-      if (rows.length === 0) return setError("No orders to export.");
-      const headers = Object.keys(rows[0]);
-      const esc = (v: unknown) => {
-        const s = v == null ? "" : String(v);
-        return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s.replace(/"/g, '""')}"` : s;
+      if (rows.length === 0) {
+        setError("No orders to export.");
+        return;
+      }
+
+      const currencyCode = String(restaurantCurrency || "NGN").toUpperCase();
+      const headers = [
+        "Order Number",
+        "Date",
+        "Time",
+        "Customer Name",
+        "Table",
+        "Order Items",
+        `Total (${currencyCode})`,
+        "Payment Status",
+        "Order Status",
+      ];
+
+      const escapeCsv = (value: unknown) => {
+        const text = value == null ? "" : String(value);
+        return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
       };
-      const csv = [headers.join(","), ...rows.map((r: any) => headers.map((h) => esc(r[h])).join(","))].join("\n");
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+
+      const exportRows = rows.map((row) => {
+        const createdAt = new Date(row.created_at);
+        const validDate = !Number.isNaN(createdAt.getTime());
+        return [
+          row.order_number ?? "",
+          validDate ? createdAt.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }) : "",
+          validDate ? createdAt.toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit", hour12: true }) : "",
+          row.Name ?? "",
+          row.table_number ?? "",
+          row.Order ?? "",
+          Number(row.Amount ?? 0).toFixed(2),
+          row.payment_status ? String(row.payment_status).replace(/\b\w/g, (c) => c.toUpperCase()) : "",
+          row.Status ?? "",
+        ].map(escapeCsv).join(",");
+      });
+
+      // UTF-8 BOM makes Excel on Windows recognize ×, ₦ and other Unicode
+      // characters correctly when the CSV is opened directly.
+      const csv = `\uFEFF${[headers.map(escapeCsv).join(","), ...exportRows].join("\r\n")}`;
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -422,7 +463,7 @@ function AdminPage() {
     } finally {
       setExporting(false);
     }
-  }, []);
+  }, [restaurantCurrency]);
 
   const logout = async () => {
     await supabase.auth.signOut();
