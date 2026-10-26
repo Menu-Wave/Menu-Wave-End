@@ -29,8 +29,8 @@ export function AppShell({ profile, active, title, subtitle, restaurantName = "R
   const sidebar = (
     <div className="flex h-full flex-col bg-[#0F172A] text-white">
       <div className="flex items-center gap-3 border-b border-white/10 px-5 py-5">
-        <img src={restaurantLogoUrl || "/menu-wave-logo.png"} alt="" className="h-10 w-10 rounded-xl bg-white object-contain p-1" />
-        <div className="min-w-0"><p className="truncate text-sm font-bold">{restaurantName}</p><p className="text-[11px] text-slate-400">Restaurant operations</p></div>
+        <img src="/menu-wave-logo.svg" alt="Menu-Wave" className="h-10 w-10 rounded-xl object-contain" />
+        <div className="min-w-0"><p className="truncate text-sm font-bold">Menu-Wave</p><p className="text-[11px] text-slate-400">Restaurant operations</p></div>
       </div>
       <nav className="flex-1 space-y-1.5 p-3">
         {items.map(({ key, to, label, icon: Icon, id }) => (
@@ -41,7 +41,7 @@ export function AppShell({ profile, active, title, subtitle, restaurantName = "R
       </nav>
       <div className="border-t border-white/10 p-3">
         <button onClick={logout} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-slate-300 hover:bg-white/10 hover:text-white"><LogOut className="h-4 w-4" />Log out</button>
-        <div className="mt-3 flex items-center gap-2 px-3 text-[10px] text-slate-500"><img src="/menu-wave-logo.png" alt="" className="h-4 w-4 rounded" />Powered by Menu-Wave</div>
+        <div className="mt-3 flex items-center gap-2 px-3 text-[10px] text-slate-500"><img src="/menu-wave-logo.svg" alt="" className="h-4 w-4 rounded" />Powered by Menu-Wave</div>
       </div>
     </div>
   );
