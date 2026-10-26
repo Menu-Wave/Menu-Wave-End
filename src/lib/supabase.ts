@@ -61,6 +61,10 @@ export interface MenuItem {
   emoji: string | null;
   image_url: string | null;
   is_available: boolean | null;
+  description?: string | null;
+  is_popular?: boolean | null;
+  is_new?: boolean | null;
+  display_order?: number | null;
 }
 
 export interface Category {
